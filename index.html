@@ -13,13 +13,13 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #F8EFEA;
-            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             color: #4a5568;
             padding: 1rem;
+            box-sizing: border-box; /* Ensures padding is included in element's total width and height */
         }
 
         .dancing-script {
@@ -98,26 +98,26 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen text-gray-800 p-4">
+<body class="flex flex-col items-center justify-start min-h-screen text-gray-800 p-4 pt-10">
 
     <!-- Splash Screen -->
     <div id="splash-screen" class="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center transition-opacity duration-1000 z-10">
-        <h1 class="text-6xl dancing-script text-gray-800 mb-6 drop-shadow-lg">Wykreślanka dla Nowożeńców</h1>
-        <p class="text-lg mb-8 max-w-sm">Z okazji Waszego Ślubu, przygotowaliśmy małą grę. Znajdźcie słowa, które towarzyszą Wam w tej wyjątkowej podróży.</p>
+        <h1 class="text-4xl sm:text-6xl dancing-script text-gray-800 mb-6 drop-shadow-lg">Wykreślanka dla Nowożeńców</h1>
+        <p class="text-md sm:text-lg mb-8 max-w-sm">Z okazji Waszego Ślubu, przygotowaliśmy małą grę. Znajdźcie słowa, które towarzyszą Wam w tej wyjątkowej podróży.</p>
         <button id="start-button" class="px-8 py-4 bg-yellow-400 text-white text-lg rounded-full shadow-lg hover:bg-yellow-500 transform transition-transform hover:scale-105 active:scale-95">
             Rozpocznij grę
         </button>
     </div>
 
     <!-- Main Game Container -->
-    <div id="game-container" class="hidden flex flex-col items-center p-6 bg-white rounded-3xl shadow-2xl max-w-4xl mx-auto w-full transition-opacity duration-1000">
+    <div id="game-container" class="hidden flex-grow flex flex-col items-center p-6 bg-white rounded-3xl shadow-2xl max-w-4xl mx-auto w-full transition-opacity duration-1000">
         <div class="text-center w-full mb-6">
             <h2 id="level-title" class="text-3xl sm:text-4xl dancing-script mb-2"></h2>
             <p id="level-description" class="text-md sm:text-lg text-gray-500"></p>
         </div>
 
         <!-- Game Board Grid -->
-        <div id="game-grid" class="w-full aspect-square md:w-[600px] md:aspect-square grid gap-1 p-2 bg-gray-100 rounded-lg shadow-inner"></div>
+        <div id="game-grid" class="w-full aspect-square max-w-[600px] grid gap-1 p-2 bg-gray-100 rounded-lg shadow-inner"></div>
 
         <!-- Words List -->
         <div id="words-list" class="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-sm sm:text-base font-semibold"></div>
@@ -125,7 +125,7 @@
         <!-- Hint Button & Counter -->
         <div id="hint-container" class="mt-4 flex flex-col items-center">
             <button id="hint-button" class="px-6 py-2 bg-indigo-500 text-white rounded-full shadow-md hover:bg-indigo-600 transform transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                Podpowiedź (babcia na pomoc!)
+                Podpowiedź
             </button>
             <span id="hint-count" class="text-sm text-gray-500 mt-2"></span>
         </div>
@@ -138,8 +138,6 @@
     <div id="final-screen" class="hidden absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center transition-opacity duration-1000 z-10">
         <h2 class="text-5xl sm:text-6xl dancing-script text-gray-800 mb-6 drop-shadow-lg">Gratulacje!</h2>
         <p class="text-lg sm:text-xl max-w-xl">Odnaleźliście wszystkie słowa, które tworzą Wasze szczęśliwe życie!</p>
-        <p class="text-lg sm:text-xl max-w-xl">Wszystkiego najlepszego! Wierzymy, że to była dobra zabawa :D</p>
-        <p class="text-lg sm:text-xl max-w-xl">Iza i Paweł</p>
     </div>
 
     <script>
@@ -305,8 +303,6 @@
                     gameGridEl.appendChild(cell);
                 }
             }
-            // Dopasuj rozmiar komórek po renderowaniu
-            adjustGridSize();
         }
 
         // Renderowanie listy słów
@@ -322,14 +318,6 @@
             });
         }
         
-        function adjustGridSize() {
-            const containerWidth = gameGridEl.offsetWidth;
-            const cellSize = (containerWidth / levels[currentLevel].size);
-            document.querySelectorAll('.word-cell').forEach(cell => {
-                cell.style.fontSize = `${Math.min(cellSize / 2.5, 20)}px`;
-            });
-        }
-
         // Obsługa interakcji myszy
         function handleMouseDown(e) {
             e.preventDefault();
@@ -576,7 +564,6 @@
             gameGridEl.addEventListener('mouseup', handleMouseUp);
         }
         
-        window.addEventListener('resize', adjustGridSize);
         startButton.addEventListener('click', () => {
             splashScreen.classList.add('opacity-0');
             setTimeout(() => {
