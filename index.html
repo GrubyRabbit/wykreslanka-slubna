@@ -14,12 +14,13 @@
             font-family: 'Inter', sans-serif;
             background-color: #F8EFEA;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             min-height: 100vh;
             color: #4a5568;
             padding: 1rem;
-            box-sizing: border-box; /* Ensures padding is included in element's total width and height */
+            box-sizing: border-box;
+            overflow-y: auto; /* Allow vertical scrolling */
         }
 
         .dancing-script {
@@ -96,6 +97,30 @@
             70% { box-shadow: 0 0 0 10px rgba(252, 211, 77, 0); }
             100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0); }
         }
+
+        /* Message Box Modal Styles */
+        #message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(5px);
+            padding: 1rem 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+            text-align: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        #message-box.visible {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-start min-h-screen text-gray-800 p-4 pt-10">
@@ -112,8 +137,8 @@
     <!-- Main Game Container -->
     <div id="game-container" class="hidden flex-grow flex flex-col items-center p-6 bg-white rounded-3xl shadow-2xl max-w-4xl mx-auto w-full transition-opacity duration-1000">
         <div class="text-center w-full mb-6">
-            <h2 id="level-title" class="text-3xl sm:text-4xl dancing-script mb-2"></h2>
-            <p id="level-description" class="text-md sm:text-lg text-gray-500"></p>
+            <h2 id="level-title" class="text-2xl sm:text-3xl lg:text-4xl dancing-script mb-2 whitespace-nowrap"></h2>
+            <p id="level-description" class="text-sm sm:text-lg text-gray-500"></p>
         </div>
 
         <!-- Game Board Grid -->
@@ -125,20 +150,22 @@
         <!-- Hint Button & Counter -->
         <div id="hint-container" class="mt-4 flex flex-col items-center">
             <button id="hint-button" class="px-6 py-2 bg-indigo-500 text-white rounded-full shadow-md hover:bg-indigo-600 transform transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                Podpowiedź
+                Podpowiedź - Babcia na pomoc!
             </button>
             <span id="hint-count" class="text-sm text-gray-500 mt-2"></span>
         </div>
-
-        <!-- Message Box -->
-        <div id="message-box" class="mt-4 px-4 py-2 text-center text-red-500 font-bold"></div>
     </div>
 
     <!-- Final Screen -->
     <div id="final-screen" class="hidden absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center transition-opacity duration-1000 z-10">
         <h2 class="text-5xl sm:text-6xl dancing-script text-gray-800 mb-6 drop-shadow-lg">Gratulacje!</h2>
         <p class="text-lg sm:text-xl max-w-xl">Odnaleźliście wszystkie słowa, które tworzą Wasze szczęśliwe życie!</p>
+        <p class="text-lg sm:text-xl max-w-xl">Wszystkiego najlepszego! Wierzymy, że to była dobra zabawa :D</p>
+        <p class="text-lg sm:text-xl max-w-xl">Iza i Paweł</p>
     </div>
+
+    <!-- Message Box Modal -->
+    <div id="message-box" class="message-box"></div>
 
     <script>
         // Game data
@@ -183,10 +210,10 @@
         const levelTitleEl = document.getElementById('level-title');
         const levelDescriptionEl = document.getElementById('level-description');
         const wordsListEl = document.getElementById('words-list');
-        const messageBoxEl = document.getElementById('message-box');
         const finalScreen = document.getElementById('final-screen');
         const hintButton = document.getElementById('hint-button');
         const hintCountEl = document.getElementById('hint-count');
+        const messageBoxEl = document.getElementById('message-box');
 
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ";
 
@@ -449,13 +476,15 @@
             if (level.words.includes(word) && !foundWords.has(word)) {
                 foundWords.add(word);
                 animateFoundWord(word, selectedCells);
+                showMessage(`Brawo! Znaleziono: ${word}!`, 'text-green-500');
             } else if (level.words.includes(reversedWord) && !foundWords.has(reversedWord)) {
                 foundWords.add(reversedWord);
                 animateFoundWord(reversedWord, selectedCells);
+                showMessage(`Brawo! Znaleziono: ${reversedWord}!`, 'text-green-500');
             } else {
-                messageBoxEl.textContent = "Spróbuj ponownie!";
-                setTimeout(() => messageBoxEl.textContent = "", 1000);
+                showMessage("Spróbuj ponownie!", 'text-red-500');
             }
+            clearSelection();
         }
 
         // Czyszczenie zaznaczenia
@@ -474,19 +503,17 @@
             const wordItem = document.getElementById(`word-${word}`);
             if (wordItem) {
                 wordItem.classList.add('found-word');
-                messageBoxEl.textContent = `Brawo! Znaleziono: ${word}!`;
-                setTimeout(() => messageBoxEl.textContent = "", 1000);
             }
 
             if (foundWords.size === levels[currentLevel].words.length) {
-                setTimeout(showLevelCompleted, 1000);
+                setTimeout(showLevelCompleted, 1500);
             }
         }
 
         // Ekran ukończenia poziomu
         function showLevelCompleted() {
             createConfetti(100);
-            messageBoxEl.textContent = `Poziom ${currentLevel + 1} ukończony!`;
+            showMessage(`Poziom ${currentLevel + 1} ukończony!`, 'text-green-600');
             setTimeout(() => {
                 if (currentLevel < levels.length - 1) {
                     currentLevel++;
@@ -494,7 +521,7 @@
                 } else {
                     showFinalScreen();
                 }
-            }, 2000);
+            }, 3000);
         }
 
         // Ekran końcowy gry
@@ -544,12 +571,21 @@
 
                     helpCount--;
                     updateHintCount();
+                    showMessage(`Podpowiedź! Jedno ze słów jest zaznaczone pulsującym kolorem.`, 'text-indigo-500');
                 }
             }
         });
         
         function updateHintCount() {
             hintCountEl.textContent = `Pozostałe podpowiedzi: ${helpCount}/3`;
+        }
+
+        function showMessage(message, colorClass) {
+            messageBoxEl.textContent = message;
+            messageBoxEl.className = 'message-box visible ' + colorClass;
+            setTimeout(() => {
+                messageBoxEl.classList.remove('visible');
+            }, 2000);
         }
 
         // Event listenery dla interakcji dotykowej i myszki
