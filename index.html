@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wykreślanka dla Nowożeńców</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8EFEA;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #4a5568;
+            padding: 1rem;
+        }
+
+        .dancing-script {
+            font-family: 'Dancing Script', cursive;
+        }
+
+        .word-cell {
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 0.25rem;
+            background-color: #f7fafc;
+            width: 100%;
+            height: 100%;
+        }
+
+        .word-cell.highlighted {
+            background-color: #FEE2E2; /* Delikatny różowy */
+            transform: scale(1.05);
+        }
+
+        .word-cell.found {
+            background-color: #FCD34D; /* Złoty */
+            color: white;
+            animation: pulse-gold 0.5s ease-in-out;
+        }
+
+        @keyframes pulse-gold {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .word-item.found-word {
+            text-decoration: line-through;
+            font-style: italic;
+            color: #9CA3AF;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #FCD34D; /* Złote konfetti */
+            border-radius: 50%;
+            animation: fall 2s ease-out forwards;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 2px;
+            background-color: #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            width: 100%;
+        }
+
+        .hint-pulse {
+            animation: hint-pulse 1s infinite;
+        }
+
+        @keyframes hint-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(252, 211, 77, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen text-gray-800 p-4">
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center transition-opacity duration-1000 z-10">
+        <h1 class="text-6xl dancing-script text-gray-800 mb-6 drop-shadow-lg">Wykreślanka dla Nowożeńców</h1>
+        <p class="text-lg mb-8 max-w-sm">Z okazji Waszego Ślubu, przygotowaliśmy małą grę. Znajdźcie słowa, które towarzyszą Wam w tej wyjątkowej podróży.</p>
+        <button id="start-button" class="px-8 py-4 bg-yellow-400 text-white text-lg rounded-full shadow-lg hover:bg-yellow-500 transform transition-transform hover:scale-105 active:scale-95">
+            Rozpocznij grę
+        </button>
+    </div>
+
+    <!-- Main Game Container -->
+    <div id="game-container" class="hidden flex flex-col items-center p-6 bg-white rounded-3xl shadow-2xl max-w-4xl mx-auto w-full transition-opacity duration-1000">
+        <div class="text-center w-full mb-6">
+            <h2 id="level-title" class="text-3xl sm:text-4xl dancing-script mb-2"></h2>
+            <p id="level-description" class="text-md sm:text-lg text-gray-500"></p>
+        </div>
+
+        <!-- Game Board Grid -->
+        <div id="game-grid" class="w-full aspect-square md:w-[600px] md:aspect-square grid gap-1 p-2 bg-gray-100 rounded-lg shadow-inner"></div>
+
+        <!-- Words List -->
+        <div id="words-list" class="w-full mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-sm sm:text-base font-semibold"></div>
+
+        <!-- Hint Button & Counter -->
+        <div id="hint-container" class="mt-4 flex flex-col items-center">
+            <button id="hint-button" class="px-6 py-2 bg-indigo-500 text-white rounded-full shadow-md hover:bg-indigo-600 transform transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                Podpowiedź (babcia na pomoc!)
+            </button>
+            <span id="hint-count" class="text-sm text-gray-500 mt-2"></span>
+        </div>
+
+        <!-- Message Box -->
+        <div id="message-box" class="mt-4 px-4 py-2 text-center text-red-500 font-bold"></div>
+    </div>
+
+    <!-- Final Screen -->
+    <div id="final-screen" class="hidden absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center transition-opacity duration-1000 z-10">
+        <h2 class="text-5xl sm:text-6xl dancing-script text-gray-800 mb-6 drop-shadow-lg">Gratulacje!</h2>
+        <p class="text-lg sm:text-xl max-w-xl">Odnaleźliście wszystkie słowa, które tworzą Wasze szczęśliwe życie!</p>
+        <p class="text-lg sm:text-xl max-w-xl">Wszystkiego najlepszego! Wierzymy, że to była dobra zabawa :D</p>
+        <p class="text-lg sm:text-xl max-w-xl">Iza i Paweł</p>
+    </div>
+
+    <script>
+        // Game data
+        const levels = [
+            {
+                title: "Poziom 1: Rodzina i Wspólne Gniazdko",
+                description: "Pierwsze kroki w dorosłym życiu, pełne miłości i wspólnych marzeń.",
+                words: ["DOM", "RODZINA", "DZIECKO", "MAMA", "TATA", "WSPÓLNE", "GNIAZDO", "UŚMIECH"],
+                size: 8
+            },
+            {
+                title: "Poziom 2: Nowożeńcy",
+                description: "Ten dzień, który na zawsze zmienił Wasze życie.",
+                words: ["MIŁOŚĆ", "ŚLUB", "MĄŻ", "ŻONA", "OBRĄCZKA", "WESELE", "PARA", "RADOŚĆ"],
+                size: 9
+            },
+            {
+                title: "Poziom 3: Wakacje i Podróże",
+                description: "Czas na wspólne odkrywanie świata i niezapomniane wspomnienia.",
+                words: ["PODRÓŻ", "SŁOŃCE", "PLAŻA", "GÓRY", "WAKACJE", "PRZYGODA", "PASZPORT", "SAMOLOT"],
+                size: 10
+            },
+            {
+                title: "Poziom 4: Hobby i Pasje",
+                description: "Spędzanie czasu, które zbliża Was do siebie jeszcze bardziej.",
+                words: ["POLEDANCE", "PLAYSTATION", "PIWO", "CERAMIKA", "SIŁKA", "KONCERT", "ROWER", "SŁOIKI"],
+                size: 11
+            },
+            {
+                title: "Poziom 5: Przyszłość",
+                description: "To, co czeka na Was za rogiem, pisane wspólną ręką.",
+                words: ["OSIEMNASTKA", "CHLOPACY", "SEKS", "IMPREZY", "JACHT", "WYCIECZKI", "CHILL", "EMERYTURA"],
+                size: 11
+            }
+        ];
+        
+        // Elementy DOM
+        const splashScreen = document.getElementById('splash-screen');
+        const startButton = document.getElementById('start-button');
+        const gameContainer = document.getElementById('game-container');
+        const gameGridEl = document.getElementById('game-grid');
+        const levelTitleEl = document.getElementById('level-title');
+        const levelDescriptionEl = document.getElementById('level-description');
+        const wordsListEl = document.getElementById('words-list');
+        const messageBoxEl = document.getElementById('message-box');
+        const finalScreen = document.getElementById('final-screen');
+        const hintButton = document.getElementById('hint-button');
+        const hintCountEl = document.getElementById('hint-count');
+
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZĄĆĘŁŃÓŚŹŻ";
+
+        let currentLevel = 0;
+        let grid = [];
+        let foundWords = new Set();
+        let selectedCells = [];
+        let isDragging = false;
+        let helpCount = 3;
+        let wordLocations = []; // Store locations of placed words
+
+        // Główna funkcja inicjująca grę
+        function initGame() {
+            foundWords = new Set();
+            selectedCells = [];
+            isDragging = false;
+            helpCount = 3;
+            updateHintCount();
+            renderLevel();
+        }
+
+        // Renderowanie danego poziomu
+        function renderLevel() {
+            const level = levels[currentLevel];
+            levelTitleEl.textContent = level.title;
+            levelDescriptionEl.textContent = level.description;
+            gameGridEl.style.gridTemplateColumns = `repeat(${level.size}, 1fr)`;
+            grid = generateGrid(level.size, level.words);
+            renderGrid();
+            renderWordList(level.words);
+        }
+
+        // Generowanie siatki z literami
+        function generateGrid(size, words) {
+            const newGrid = Array(size).fill(null).map(() => Array(size).fill(''));
+            wordLocations = [];
+            let allWords = [...words];
+            
+            // Definiuje tylko kierunki poziome i pionowe
+            const nonDiagonalDirections = [
+                [0, 1], [1, 0], [0, -1], [-1, 0]
+            ];
+            
+            // Place words
+            allWords.sort((a, b) => b.length - a.length); // Place longer words first
+            allWords.forEach(word => {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 1000) {
+                    const directionIndex = Math.floor(Math.random() * nonDiagonalDirections.length); // Wybiera jeden z 4 kierunków
+                    const direction = nonDiagonalDirections[directionIndex];
+                    const row = Math.floor(Math.random() * size);
+                    const col = Math.floor(Math.random() * size);
+                    
+                    let canPlace = true;
+                    let r = row;
+                    let c = col;
+                    let currentWordCells = [];
+
+                    for (let i = 0; i < word.length; i++) {
+                        if (r < 0 || r >= size || c < 0 || c >= size || (newGrid[r][c] !== '' && newGrid[r][c] !== word[i])) {
+                            canPlace = false;
+                            break;
+                        }
+                        currentWordCells.push({row: r, col: c});
+                        r += direction[0];
+                        c += direction[1];
+                    }
+                    
+                    if (canPlace) {
+                        r = row;
+                        c = col;
+                        for (let i = 0; i < word.length; i++) {
+                            newGrid[r][c] = word[i];
+                            r += direction[0];
+                            c += direction[1];
+                        }
+                        wordLocations.push({word: word, cells: currentWordCells});
+                        placed = true;
+                    }
+                    attempts++;
+                }
+            });
+            
+            // Fill empty spaces with random letters
+            for (let i = 0; i < size; i++) {
+                for (let j = 0; j < size; j++) {
+                    if (newGrid[i][j] === '') {
+                        newGrid[i][j] = alphabet[Math.floor(Math.random() * alphabet.length)];
+                    }
+                }
+            }
+            return newGrid;
+        }
+        
+        function getNextPosition(row, col, direction) {
+            const directions = [
+                [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]
+            ];
+            return [row + directions[direction][0], col + directions[direction][1]];
+        }
+
+        // Renderowanie wizualne siatki
+        function renderGrid() {
+            gameGridEl.innerHTML = '';
+            const size = levels[currentLevel].size;
+            for (let i = 0; i < size; i++) {
+                for (let j = 0; j < size; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'word-cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.textContent = grid[i][j];
+                    gameGridEl.appendChild(cell);
+                }
+            }
+            // Dopasuj rozmiar komórek po renderowaniu
+            adjustGridSize();
+        }
+
+        // Renderowanie listy słów
+        function renderWordList(words) {
+            wordsListEl.innerHTML = '';
+            words.forEach(word => {
+                const li = document.createElement('div');
+                li.className = 'word-item px-2 py-1 rounded-md bg-gray-100 shadow-md transition-colors duration-300';
+                li.textContent = word;
+                li.dataset.word = word;
+                li.id = `word-${word}`; // Dodanie ID dla łatwego odnalezienia
+                wordsListEl.appendChild(li);
+            });
+        }
+        
+        function adjustGridSize() {
+            const containerWidth = gameGridEl.offsetWidth;
+            const cellSize = (containerWidth / levels[currentLevel].size);
+            document.querySelectorAll('.word-cell').forEach(cell => {
+                cell.style.fontSize = `${Math.min(cellSize / 2.5, 20)}px`;
+            });
+        }
+
+        // Obsługa interakcji myszy
+        function handleMouseDown(e) {
+            e.preventDefault();
+            isDragging = true;
+            const cell = e.target.closest('.word-cell');
+            if (!cell) return;
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            selectedCells.push({ row, col, el: cell });
+            cell.classList.add('highlighted');
+        }
+
+        function handleMouseUp(e) {
+            e.preventDefault();
+            if (!isDragging) return;
+            isDragging = false;
+            checkSelection();
+            clearSelection();
+        }
+
+        function handleMouseEnter(e) {
+            e.preventDefault();
+            if (!isDragging || selectedCells.length === 0) return;
+            
+            const cell = e.target.closest('.word-cell');
+            if (!cell) return;
+            
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+
+            const lastCell = selectedCells[selectedCells.length - 1];
+            const newCell = { row, col, el: cell };
+            
+            if (row === lastCell.row && col === lastCell.col) return;
+
+            const isAdjacent = Math.abs(row - lastCell.row) <= 1 && Math.abs(col - lastCell.col) <= 1;
+            if (isAdjacent) {
+                if (selectedCells.length > 1) {
+                    const secondLastCell = selectedCells[selectedCells.length - 2];
+                    const prevDirRow = lastCell.row - secondLastCell.row;
+                    const prevDirCol = lastCell.col - secondLastCell.col;
+                    const newDirRow = newCell.row - lastCell.row;
+                    const newDirCol = newCell.col - lastCell.col;
+                    
+                    if (prevDirRow !== newDirRow || prevDirCol !== newDirCol) {
+                        clearSelection();
+                        return;
+                    }
+                }
+                selectedCells.push(newCell);
+                cell.classList.add('highlighted');
+            } else {
+                clearSelection();
+            }
+        }
+        
+        // Obsługa interakcji dotykowych
+        function handleTouchStart(e) {
+            e.preventDefault();
+            isDragging = true;
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const cell = target ? target.closest('.word-cell') : null;
+            if (cell) {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                selectedCells.push({ row, col, el: cell });
+                cell.classList.add('highlighted');
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            if (!isDragging) return;
+            isDragging = false;
+            checkSelection();
+            clearSelection();
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!isDragging || selectedCells.length === 0) return;
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const cell = target ? target.closest('.word-cell') : null;
+            
+            if (cell) {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                const lastCell = selectedCells[selectedCells.length - 1];
+                const newCell = { row, col, el: cell };
+
+                if (row === lastCell.row && col === lastCell.col) return;
+
+                const isAdjacent = Math.abs(row - lastCell.row) <= 1 && Math.abs(col - lastCell.col) <= 1;
+                if (isAdjacent) {
+                    if (selectedCells.length > 1) {
+                        const secondLastCell = selectedCells[selectedCells.length - 2];
+                        const prevDirRow = lastCell.row - secondLastCell.row;
+                        const prevDirCol = lastCell.col - secondLastCell.col;
+                        const newDirRow = newCell.row - lastCell.row;
+                        const newDirCol = newCell.col - lastCell.col;
+                        if (prevDirRow !== newDirRow || prevDirCol !== newDirCol) {
+                             clearSelection();
+                             return;
+                        }
+                    }
+                    if (!selectedCells.some(c => c.row === row && c.col === col)) {
+                         selectedCells.push(newCell);
+                         cell.classList.add('highlighted');
+                    }
+                } else {
+                    clearSelection();
+                }
+            }
+        }
+        
+        // Sprawdzanie wyboru
+        function checkSelection() {
+            if (selectedCells.length < 2) {
+                clearSelection();
+                return;
+            }
+            
+            const word = selectedCells.map(cell => grid[cell.row][cell.col]).join('');
+            const reversedWord = word.split('').reverse().join('');
+            const level = levels[currentLevel];
+            
+            if (level.words.includes(word) && !foundWords.has(word)) {
+                foundWords.add(word);
+                animateFoundWord(word, selectedCells);
+            } else if (level.words.includes(reversedWord) && !foundWords.has(reversedWord)) {
+                foundWords.add(reversedWord);
+                animateFoundWord(reversedWord, selectedCells);
+            } else {
+                messageBoxEl.textContent = "Spróbuj ponownie!";
+                setTimeout(() => messageBoxEl.textContent = "", 1000);
+            }
+        }
+
+        // Czyszczenie zaznaczenia
+        function clearSelection() {
+            selectedCells.forEach(cell => cell.el.classList.remove('highlighted'));
+            selectedCells = [];
+        }
+
+        // Animacja znalezionego słowa
+        function animateFoundWord(word, cells) {
+            cells.forEach(cell => {
+                cell.el.classList.add('found');
+                cell.el.classList.remove('highlighted');
+            });
+
+            const wordItem = document.getElementById(`word-${word}`);
+            if (wordItem) {
+                wordItem.classList.add('found-word');
+                messageBoxEl.textContent = `Brawo! Znaleziono: ${word}!`;
+                setTimeout(() => messageBoxEl.textContent = "", 1000);
+            }
+
+            if (foundWords.size === levels[currentLevel].words.length) {
+                setTimeout(showLevelCompleted, 1000);
+            }
+        }
+
+        // Ekran ukończenia poziomu
+        function showLevelCompleted() {
+            createConfetti(100);
+            messageBoxEl.textContent = `Poziom ${currentLevel + 1} ukończony!`;
+            setTimeout(() => {
+                if (currentLevel < levels.length - 1) {
+                    currentLevel++;
+                    initGame();
+                } else {
+                    showFinalScreen();
+                }
+            }, 2000);
+        }
+
+        // Ekran końcowy gry
+        function showFinalScreen() {
+            gameContainer.classList.add('hidden');
+            finalScreen.classList.remove('hidden');
+            finalScreen.classList.add('opacity-100');
+            createConfetti(400);
+        }
+        
+        // Animacja konfetti
+        function createConfetti(count) {
+            const colors = ['#FCD34D', '#F9A8D4', '#6EE7B7', '#93C5FD'];
+            for (let i = 0; i < count; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti-piece');
+                const x = Math.random() * window.innerWidth;
+                const y = -10;
+                const duration = Math.random() * 2 + 3;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = `${x}px`;
+                confetti.style.top = `${y}px`;
+                confetti.style.backgroundColor = color;
+                confetti.style.animation = `fall ${duration}s ease-out forwards`;
+                document.body.appendChild(confetti);
+            }
+        }
+
+        // Logika przycisku podpowiedzi
+        hintButton.addEventListener('click', () => {
+            if (helpCount > 0 && foundWords.size < levels[currentLevel].words.length) {
+                const unfoundWords = levels[currentLevel].words.filter(word => !foundWords.has(word));
+                if (unfoundWords.length > 0) {
+                    const wordToHelp = unfoundWords[Math.floor(Math.random() * unfoundWords.length)];
+                    const wordItem = document.getElementById(`word-${wordToHelp}`);
+                    
+                    const locatedWord = wordLocations.find(loc => loc.word === wordToHelp);
+                    if (locatedWord) {
+                        const firstCell = document.querySelector(`.word-cell[data-row='${locatedWord.cells[0].row}'][data-col='${locatedWord.cells[0].col}']`);
+                        if (firstCell) {
+                            firstCell.classList.add('hint-pulse');
+                            setTimeout(() => {
+                                firstCell.classList.remove('hint-pulse');
+                            }, 3000);
+                        }
+                    }
+
+                    helpCount--;
+                    updateHintCount();
+                }
+            }
+        });
+        
+        function updateHintCount() {
+            hintCountEl.textContent = `Pozostałe podpowiedzi: ${helpCount}/3`;
+        }
+
+        // Event listenery dla interakcji dotykowej i myszki
+        let isTouch = 'ontouchstart' in window;
+        if (isTouch) {
+            gameGridEl.addEventListener('touchstart', handleTouchStart, { passive: false });
+            gameGridEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+            gameGridEl.addEventListener('touchend', handleTouchEnd, { passive: false });
+        } else {
+            gameGridEl.addEventListener('mousedown', handleMouseDown);
+            gameGridEl.addEventListener('mousemove', handleMouseEnter);
+            gameGridEl.addEventListener('mouseup', handleMouseUp);
+        }
+        
+        window.addEventListener('resize', adjustGridSize);
+        startButton.addEventListener('click', () => {
+            splashScreen.classList.add('opacity-0');
+            setTimeout(() => {
+                splashScreen.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                gameContainer.classList.add('opacity-100');
+                initGame();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
