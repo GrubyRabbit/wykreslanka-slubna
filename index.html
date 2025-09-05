@@ -565,13 +565,13 @@
                             firstCell.classList.add('hint-pulse');
                             setTimeout(() => {
                                 firstCell.classList.remove('hint-pulse');
-                            }, 3000);
+                            }, 5000);
                         }
                     }
 
                     helpCount--;
                     updateHintCount();
-                    showMessage(`Podpowiedź! Jedno ze słów jest zaznaczone pulsującym kolorem.`, 'text-indigo-500');
+                    showMessage(`Podpowiedź! Pierwsza litera pulsuje.`, 'text-indigo-500');
                 }
             } else {
                 showMessage("haha, nie ma więcej podpowiedzi", 'text-red-500');
